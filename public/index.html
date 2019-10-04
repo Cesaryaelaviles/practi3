@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <title>Aplicación RIA</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <style>
+      body {
+      	background: red;
+        font-family: sans-serif;
+      }
+    </style>
+  </head>
+  <body>
+  	<center>
+    <h1>Promedios</h1>
+    <p><output id="respuesta"></output></p>
+    <form id="vista">   
+      <p><input type="text" id="nombre1" required placeholder="Nombre"></p>
+      <p><input type="text" id="nombre2" required placeholder="Matricula"></p>
+      <p><input type="number" step="0.01" id="calificacion1" required placeholder="Calificacion 1" min="1.0" max="10.0"></p>
+      <p><input type="number" step="0.01" id="calificacion2" required placeholder="Calificacion 2" min="1.0" max="10.0"></p>
+      <p><input type="number" step="0.01" id="calificacion3" required placeholder="Calificacion 3" min="1.0" max="10.0"></p>
+      <p>
+        <button type="submit">Calcular (Hilos)</button>
+        <button type="button" id="saludarHttp">Calcular (Http)</button>
+      </p>
+
+      <footer>Copyright &copy; 2019 Aviles Martinez Cesar Yael IC-51.</footer>
+    </form>
+    <script type="module">
+      /* Crea un worker que cuyo código fuente está en el archivo "wwSaldo.js" y
+       * se ejecuta en un hilo independiente. */
+      const hilo = new Worker("wwSaludo.js");
+ 
+      // Enlaza el evento submit de la forma con la función saludaHilo */
+      vista.addEventListener("submit", saludaHilo);
+ 
+      // Enlaza el evento click de saludarHttp con la función saludaHttp */
+      saludarHttp.addEventListener("click", saludaHttp);
+ 
+      // Enlaza el evento message del hilo para que muestre los datos devueltos.
+      hilo.addEventListener("message", evt => muestraRespuesta(evt.data));
+ 
+      /** Muestra un texto en el output con id="respuesta".
+       * @param texto texto que se muestra. */
+      function muestraRespuesta(texto) {
+        respuesta.value = texto;
+      }
+ 
+      /** Envía datos al hilo para que genere un saludo.
+       * @param {Event} evt objeto que describe el evento. */
+      function saludaHilo(evt) {
+        evt.preventDefault();
+        /* Toma los datos capturados en la interfaz gráfica y arma un objeto
+         * con las property nombre1 y nombre2. */
+        const modelo = leeModelo();
+        // Envía los datos al hilo.
+        hilo.postMessage(modelo);
+      }
+ 
+      /** Toma los datos capturados en la interfaz gráfica y arma un objeto
+       * con las property nombre1 y nombre2.
+       * @returns {{nombre1:string, nombre2:string}} los datos capturados. */
+      function leeModelo() {
+        // Lo que está entre llaves es el objeto.
+        return {
+          /* nombre1: indica el nombre de la property
+           * nombre1.value.trim() toma la captura de id="nombre1" y le quita los
+           *        espacios y saltos de línea al inicio y al final. */
+          nombre1: nombre1.value.trim(),
+          nombre2: nombre2.value.trim(),
+          calificacion1: calificacion1.value,
+          calificacion2: calificacion2.value,
+          calificacion3: calificacion3.value
+        };
+      }
+ 
+      /** Envía los datos a la función en Internet. */
+      function saludaHttp() {
+        const modelo = leeModelo();
+        /* La función fetch envía los datos al servidor. El texto que recibe como
+         * parámetro es la url que se invoca. El signo de interrogación "?"
+         * permite pasarle parámetros y encodeURIComponent formatea la
+         * información para que se puede colocar en la URL. El signo "&" separa
+         * los parámetros. En este caso se envían los parámetros "nombre1" y
+         * "nombre2", que llevan los datos del modelo. */
+        fetch("saludo?nombre1=" + encodeURIComponent(modelo.nombre1)
+          + "&nombre2=" + encodeURIComponent(modelo.nombre2) + "&calificacion1=" + encodeURIComponent(modelo.calificacion1)
+           + "&calificacion2=" + encodeURIComponent(modelo.calificacion2) + "&calificacion3=" + encodeURIComponent(modelo.calificacion3))
+          /* then recibe una función que se ejecuta cuando la comunicación con
+           * el servidor haya terminado exitosamente. */
+          .then(
+            /** Función que se ejecuta cuando la comunicación con el servidor
+             * haya terminado exitosamente.
+             * @param {Response} respuestaHttp el resultado de la conexión */
+            respuestaHttp => {
+              /* La property ok de la respuesta vale true si la conexión terminó
+               * con éxito. */
+              if (respuestaHttp.ok) {
+                /* En esta parte del if, la conexión terminó con éxito. Hay que
+                 * mostrar el texto del servidor. respuestaHttp.text() devuelve
+                 * una promise con el texto recibido; dicha promise se devuelve
+                 * como resultado de esta función. */
+                return respuestaHttp.text();
+              } else {
+                /* En esta parte del if, la conexión terminó con errores. Se
+                 * Lanza una excepción que será atrapada por la función del
+                 * .catch en la línea 111. respuestaHttp.statusText devuelve
+                 * un texto describiendo el error, que normalmente está en
+                 * inglés. */
+                throw new Error(respuestaHttp.statusText)
+              }
+            })
+          /* La función del .then anterior, devuelve una promise; cuando esta
+           * termina de ejecutarse, el valor que devuelve se le pasa a la
+           * función de este then. */
+          .then(texto => muestraRespuesta(texto))
+          /* Cuando se genere una excepción en cualquier punto de la cadena
+           * de operaciones, se invoca la función que recibe catch. */
+          .catch(e => muestraRespuesta(e.message));
+      }
+    </script>
+    </center>
+  </body>
+</html>
